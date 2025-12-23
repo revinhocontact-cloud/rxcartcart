@@ -5,9 +5,8 @@ require('dotenv').config();
 const { DATABASE_URL, NODE_ENV } = process.env;
 
 if (!DATABASE_URL) {
-  console.warn("⚠️  AVISO: DATABASE_URL não definida. Usando mock de dados.");
-  module.exports = null;
-  return;
+  console.error("ERRO CRÍTICO: DATABASE_URL não definida no arquivo .env");
+  process.exit(1);
 }
 
 // Configuração de conexão

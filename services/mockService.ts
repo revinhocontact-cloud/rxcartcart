@@ -1,8 +1,10 @@
-
 import { PosterConfig, PrintQueueItem, Product, User, UserRole, Template, SystemConfig, MOCK_PRODUCTS } from '../types';
 
-// URL do Backend (Localhost para desenvolvimento)
-const API_URL = 'http://localhost:3000';
+// URL do Backend
+// Em produção na Vercel, isso normalmente apontaria para uma URL real.
+// Se não definida, usará localhost, o que falhará no navegador do cliente (correto, caindo no fallback local).
+// Safe access to Vite environment variables using optional chaining
+const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000';
 
 // Chaves para persistência local
 const LOCAL_PRODUCTS_KEY = 'rexcart_products_v1';
