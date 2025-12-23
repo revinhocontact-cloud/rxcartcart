@@ -1,0 +1,5 @@
+{
+  "name": "RexCart",
+  "description": "Plataforma SaaS para criação e gestão de cartazes de varejo (preços, ofertas) com gestão de fila de impressão.",
+  "requestFramePermissions": []
+}
