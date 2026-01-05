@@ -1,8 +1,8 @@
 
-
 export enum UserRole {
   ADMIN = 'ADMIN',
-  CUSTOMER = 'CUSTOMER'
+  CUSTOMER = 'CUSTOMER',
+  SUPPORT = 'SUPPORT' // Novo papel para funcionários
 }
 
 export enum PaperSize {
@@ -15,7 +15,8 @@ export enum PaperSize {
 export enum CampaignType {
   NORMAL = 'NORMAL',
   OFFER = 'OFFER',
-  CLEARANCE = 'CLEARANCE'
+  CLEARANCE = 'CLEARANCE',
+  CUSTOM = 'CUSTOM' // Added CUSTOM type
 }
 
 // Added VisionFormat enum to support RexCart Vision module templates
@@ -24,6 +25,43 @@ export enum VisionFormat {
   STORY = 'STORY',
   A4 = 'A4'
 }
+
+// --- SUPPORT SYSTEM TYPES ---
+export enum TicketStatus {
+  OPEN = 'OPEN',
+  ANSWERED = 'ANSWERED',
+  CLOSED = 'CLOSED'
+}
+
+export enum TicketPriority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH'
+}
+
+export interface TicketMessage {
+  id: string;
+  ticketId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: UserRole;
+  message: string;
+  createdAt: string;
+  isAdmin: boolean; // True se for ADMIN ou SUPPORT
+}
+
+export interface Ticket {
+  id: string;
+  userId: string;
+  userName: string; // Denormalized for list view performance
+  subject: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  createdAt: string;
+  updatedAt: string;
+  lastMessage?: string;
+}
+// ----------------------------
 
 export interface User {
   id: string;
@@ -54,17 +92,30 @@ export interface Product {
   createdAt?: string;
 }
 
-export interface Template {
-  id: string;
-  name: string;
-  imageUrl: string;
-  createdAt: string;
+export interface ElementLayout {
+  x: number;
+  y: number;
+  scale: number;
+  visible?: boolean;
+  color?: string; // Hex color override
 }
 
 export interface PosterLayoutConfig {
-  productName?: { x: number; y: number; scale: number };
-  price?: { x: number; y: number; scale: number };
-  description?: { x: number; y: number; scale: number };
+  productName?: ElementLayout;
+  price?: ElementLayout;
+  description?: ElementLayout;
+  priceBg?: ElementLayout; // Layout for price background image
+  logo?: ElementLayout; // Layout for store logo
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  baseImageUrl: string; // The main background
+  priceBgUrl?: string; // Optional splash behind price
+  logoUrl?: string; // Optional logo
+  layout: PosterLayoutConfig; // Predefined layout positions
+  createdAt: string;
 }
 
 export interface PosterConfig {
@@ -78,6 +129,12 @@ export interface PosterConfig {
   campaign: CampaignType;
   size: PaperSize;
   layout?: PosterLayoutConfig;
+  
+  // Custom Template Assets
+  backgroundImageUrl?: string;
+  priceBgUrl?: string;
+  logoUrl?: string;
+  
   createdAt: string;
 }
 
@@ -126,7 +183,8 @@ export const MOCK_PRODUCTS: Product[] = [
 export const CAMPAIGN_STYLES = {
   [CampaignType.NORMAL]: { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'Preço Normal', accent: 'bg-blue-600' },
   [CampaignType.OFFER]: { bg: 'bg-yellow-400', text: 'text-red-700', border: 'border-yellow-500', label: 'APROVEITE', accent: 'bg-red-600' },
-  [CampaignType.CLEARANCE]: { bg: 'bg-red-600', text: 'text-white', border: 'border-red-700', label: 'SALDÃO', accent: 'bg-yellow-400' }
+  [CampaignType.CLEARANCE]: { bg: 'bg-red-600', text: 'text-white', border: 'border-red-700', label: 'SALDÃO', accent: 'bg-yellow-400' },
+  [CampaignType.CUSTOM]: { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'Personalizado', accent: 'bg-slate-800' }
 };
 
 export const PAPER_DIMENSIONS = {

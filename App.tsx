@@ -16,6 +16,7 @@ import { Templates } from './pages/dashboard/Templates';
 import { Settings } from './pages/dashboard/Settings';
 import { Admin } from './pages/dashboard/Admin';
 import { SystemSettings } from './pages/dashboard/SystemSettings';
+import { Support } from './pages/dashboard/Support';
 import { PrintView } from './pages/PrintView';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -56,6 +57,7 @@ const AppRoutes = () => {
         <Route path="products" element={<Products />} />
         <Route path="templates" element={<Templates />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="support" element={<Support />} />
         <Route path="admin" element={<Admin />} />
         <Route path="admin/settings" element={<SystemSettings />} />
       </Route>

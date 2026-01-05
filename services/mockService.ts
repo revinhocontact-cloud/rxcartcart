@@ -1,15 +1,15 @@
-import { PosterConfig, PrintQueueItem, Product, User, UserRole, Template, SystemConfig, MOCK_PRODUCTS } from '../types';
+
+import { PosterConfig, PrintQueueItem, Product, User, UserRole, Template, SystemConfig, MOCK_PRODUCTS, Ticket, TicketMessage, TicketStatus, TicketPriority } from '../types';
 
 // URL do Backend
-// Em produção na Vercel, isso normalmente apontaria para uma URL real.
-// Se não definida, usará localhost, o que falhará no navegador do cliente (correto, caindo no fallback local).
-// Safe access to Vite environment variables using optional chaining
 const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000';
 
 // Chaves para persistência local
 const LOCAL_PRODUCTS_KEY = 'rexcart_products_v1';
 const LOCAL_QUEUE_KEY = 'rexcart_queue_v1';
 const LOCAL_CONFIG_KEY = 'rexcart_config_v1';
+const LOCAL_TICKETS_KEY = 'rexcart_tickets_v1';
+const LOCAL_MESSAGES_KEY = 'rexcart_messages_v1';
 
 // Mock Users for Fallback
 const MOCK_USER: User = {
@@ -28,6 +28,17 @@ const MOCK_ADMIN: User = {
   name: 'Admin User',
   email: 'admin@rexcart.com',
   role: UserRole.ADMIN,
+  plan: 'ENTERPRISE',
+  validUntil: '2099-12-31',
+  status: 'ACTIVE',
+  createdAt: new Date().toISOString()
+};
+
+const MOCK_SUPPORT: User = {
+  id: '3',
+  name: 'Suporte Técnico',
+  email: 'suporte@rexcart.com',
+  role: UserRole.SUPPORT,
   plan: 'ENTERPRISE',
   validUntil: '2099-12-31',
   status: 'ACTIVE',
@@ -78,6 +89,26 @@ const saveLocalQueue = (queue: PrintQueueItem[]) => {
     localStorage.setItem(LOCAL_QUEUE_KEY, JSON.stringify(queue));
 };
 
+// --- TICKET HELPERS ---
+const getLocalTickets = (): Ticket[] => {
+    const stored = localStorage.getItem(LOCAL_TICKETS_KEY);
+    return stored ? JSON.parse(stored) : [];
+};
+
+const saveLocalTickets = (tickets: Ticket[]) => {
+    localStorage.setItem(LOCAL_TICKETS_KEY, JSON.stringify(tickets));
+};
+
+const getLocalMessages = (): TicketMessage[] => {
+    const stored = localStorage.getItem(LOCAL_MESSAGES_KEY);
+    return stored ? JSON.parse(stored) : [];
+};
+
+const saveLocalMessages = (msgs: TicketMessage[]) => {
+    localStorage.setItem(LOCAL_MESSAGES_KEY, JSON.stringify(msgs));
+};
+
+
 export const MockService = {
   // --- AUTH ---
   login: async (email: string, password: string): Promise<User> => {
@@ -93,6 +124,7 @@ export const MockService = {
     } catch (error: any) {
       if (email === 'demo@rexcart.com' && password === 'demo') return MOCK_USER;
       if (email === 'admin@rexcart.com' && password === 'admin') return MOCK_ADMIN;
+      if (email === 'suporte@rexcart.com' && password === 'suporte') return MOCK_SUPPORT;
       throw error;
     }
   },
@@ -119,7 +151,7 @@ export const MockService = {
         if (!res.ok) return [MOCK_USER];
         return await res.json();
     } catch {
-        return [MOCK_USER, MOCK_ADMIN];
+        return [MOCK_USER, MOCK_ADMIN, MOCK_SUPPORT];
     }
   },
 
@@ -162,9 +194,7 @@ export const MockService = {
   },
 
   saveSystemConfig: async (config: SystemConfig) => {
-      // Salvar localmente primeiro para resposta instantânea
       localStorage.setItem(LOCAL_CONFIG_KEY, JSON.stringify(config));
-
       try {
         await fetch(`${API_URL}/data`, {
             method: 'POST',
@@ -297,5 +327,97 @@ export const MockService = {
               reader.readAsDataURL(file);
           });
       }
+  },
+
+  // --- TICKETS (SUPPORT) ---
+  
+  getTickets: async (userId: string, role: UserRole): Promise<Ticket[]> => {
+      const tickets = getLocalTickets();
+      // Admin e Support podem ver todos os tickets
+      if (role === UserRole.ADMIN || role === UserRole.SUPPORT) {
+          return tickets; 
+      }
+      return tickets.filter(t => t.userId === userId);
+  },
+
+  getTicketMessages: async (ticketId: string): Promise<TicketMessage[]> => {
+      const msgs = getLocalMessages();
+      return msgs.filter(m => m.ticketId === ticketId).sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  },
+
+  createTicket: async (ticket: Partial<Ticket>, initialMessage: string, sender: User): Promise<Ticket> => {
+      const tickets = getLocalTickets();
+      const messages = getLocalMessages();
+      
+      const newTicket: Ticket = {
+          id: Math.random().toString(36).substr(2, 9),
+          userId: sender.id,
+          userName: sender.name,
+          subject: ticket.subject!,
+          priority: ticket.priority!,
+          status: TicketStatus.OPEN,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          lastMessage: initialMessage
+      };
+
+      const newMessage: TicketMessage = {
+          id: Math.random().toString(36).substr(2, 9),
+          ticketId: newTicket.id,
+          senderId: sender.id,
+          senderName: sender.name,
+          senderRole: sender.role,
+          message: initialMessage,
+          createdAt: new Date().toISOString(),
+          isAdmin: sender.role === UserRole.ADMIN || sender.role === UserRole.SUPPORT
+      };
+
+      saveLocalTickets([newTicket, ...tickets]);
+      saveLocalMessages([...messages, newMessage]);
+
+      return newTicket;
+  },
+
+  sendTicketMessage: async (ticketId: string, message: string, sender: User): Promise<TicketMessage> => {
+      const messages = getLocalMessages();
+      const tickets = getLocalTickets();
+
+      const isStaff = sender.role === UserRole.ADMIN || sender.role === UserRole.SUPPORT;
+
+      const newMessage: TicketMessage = {
+          id: Math.random().toString(36).substr(2, 9),
+          ticketId: ticketId,
+          senderId: sender.id,
+          senderName: sender.name,
+          senderRole: sender.role,
+          message: message,
+          createdAt: new Date().toISOString(),
+          isAdmin: isStaff
+      };
+
+      // Update ticket status if admin/support replies
+      const updatedTickets = tickets.map(t => {
+          if (t.id === ticketId) {
+              return {
+                  ...t,
+                  updatedAt: new Date().toISOString(),
+                  lastMessage: message,
+                  // If staff sends message, set to ANSWERED, if user sends, set back to OPEN
+                  status: isStaff ? TicketStatus.ANSWERED : TicketStatus.OPEN
+              };
+          }
+          return t;
+      });
+
+      saveLocalMessages([...messages, newMessage]);
+      saveLocalTickets(updatedTickets);
+
+      return newMessage;
+  },
+
+  updateTicketStatus: async (ticketId: string, status: TicketStatus): Promise<void> => {
+      const tickets = getLocalTickets();
+      const updatedTickets = tickets.map(t => t.id === ticketId ? { ...t, status, updatedAt: new Date().toISOString() } : t);
+      saveLocalTickets(updatedTickets);
   }
 };

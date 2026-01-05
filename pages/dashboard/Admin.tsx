@@ -21,6 +21,7 @@ export const Admin: React.FC = () => {
       cpf: '',
       address: '',
       plan: 'FREE',
+      role: UserRole.CUSTOMER, // Added role field to form
       duration: '1',
       status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'EXPIRED'
   });
@@ -38,13 +39,14 @@ export const Admin: React.FC = () => {
     loadUsers();
   }, []);
 
-  if (user?.role !== UserRole.ADMIN) {
-    return <div className="p-8 text-red-500 font-bold text-center">Acesso restrito apenas para administradores.</div>;
+  // Allow ADMIN and SUPPORT to access this page
+  if (user?.role !== UserRole.ADMIN && user?.role !== UserRole.SUPPORT) {
+    return <div className="p-8 text-red-500 font-bold text-center">Acesso restrito.</div>;
   }
 
   const handleOpenCreate = () => {
       setEditingUser(null);
-      setFormData({ name: '', email: '', cpf: '', address: '', plan: 'FREE', duration: '1', status: 'ACTIVE' });
+      setFormData({ name: '', email: '', cpf: '', address: '', plan: 'FREE', role: UserRole.CUSTOMER, duration: '1', status: 'ACTIVE' });
       setIsModalOpen(true);
   };
 
@@ -56,6 +58,7 @@ export const Admin: React.FC = () => {
           cpf: user.cpf || '',
           address: user.address || '',
           plan: user.plan,
+          role: user.role,
           duration: '0', // Keep current date by default logic
           status: user.status || 'ACTIVE'
       });
@@ -74,6 +77,7 @@ export const Admin: React.FC = () => {
                   name: formData.name,
                   email: formData.email,
                   plan: formData.plan as any,
+                  role: formData.role, // Allow changing role
                   cpf: formData.cpf,
                   address: formData.address,
                   status: formData.status,
@@ -87,7 +91,7 @@ export const Admin: React.FC = () => {
               
               // Local update for demo smoothness
               setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-              alert('Dados do cliente atualizados com sucesso!');
+              alert('Dados atualizados com sucesso!');
 
           } else {
               // --- CREATE MODE ---
@@ -98,7 +102,7 @@ export const Admin: React.FC = () => {
                   id: '',
                   name: formData.name,
                   email: formData.email,
-                  role: UserRole.CUSTOMER,
+                  role: formData.role,
                   plan: formData.plan as any,
                   cpf: formData.cpf,
                   address: formData.address,
@@ -112,7 +116,7 @@ export const Admin: React.FC = () => {
               await MockService.createUser(newUser);
               
               // Show password to Admin
-              alert(`Usuário criado com sucesso!\n\nSENHA GERADA: ${autoPassword}\n\nCopie e envie para o cliente. Ele deverá trocar a senha no primeiro acesso.`);
+              alert(`Usuário criado com sucesso!\n\nSENHA GERADA: ${autoPassword}\n\nCopie e envie para o usuário.`);
               
               loadUsers();
           }
@@ -126,7 +130,7 @@ export const Admin: React.FC = () => {
   };
 
   const handleDeleteUser = async (id: string) => {
-      if (confirm('Tem certeza que deseja excluir este cliente?')) {
+      if (confirm('Tem certeza que deseja excluir este usuário?')) {
           await MockService.deleteUser(id);
           setUsers(prev => prev.filter(u => u.id !== id));
       }
@@ -168,14 +172,14 @@ export const Admin: React.FC = () => {
                  <ChevronRight size={12} className="mx-1" />
                  <span className="text-violet-400">Usuários</span>
              </div>
-             <h1 className="text-2xl font-bold text-white">Gerenciar Clientes</h1>
+             <h1 className="text-2xl font-bold text-white">Gerenciar Usuários</h1>
          </div>
          <Button 
             onClick={handleOpenCreate}
             className="bg-violet-600 hover:bg-violet-500 text-white border-none shadow-lg shadow-violet-500/20"
          >
              <Plus className="w-4 h-4 mr-2" />
-             Novo Cliente
+             Novo Usuário
          </Button>
       </div>
 
@@ -235,12 +239,11 @@ export const Admin: React.FC = () => {
             <table className="w-full text-left border-collapse">
                 <thead>
                     <tr className="bg-[#1E293B] border-b border-slate-800 text-xs uppercase text-slate-400 font-semibold tracking-wider">
-                        <th className="p-4">Cliente</th>
-                        <th className="p-4">CPF/CNPJ</th>
+                        <th className="p-4">Usuário</th>
+                        <th className="p-4">Tipo</th>
                         <th className="p-4">Plano</th>
                         <th className="p-4">Status</th>
                         <th className="p-4">Validade</th>
-                        <th className="p-4">Uso</th>
                         <th className="p-4 text-right">Ações</th>
                     </tr>
                 </thead>
@@ -249,7 +252,7 @@ export const Admin: React.FC = () => {
                         <tr key={client.id} className="hover:bg-slate-800/50 transition-colors group">
                             <td className="p-4">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${client.role === 'ADMIN' ? 'from-violet-600 to-indigo-600' : 'from-slate-700 to-slate-800'}`}>
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm bg-gradient-to-br ${client.role === 'ADMIN' ? 'from-violet-600 to-indigo-600' : (client.role === 'SUPPORT' ? 'from-amber-600 to-orange-600' : 'from-slate-700 to-slate-800')}`}>
                                         {client.name.substring(0, 1).toUpperCase()}
                                     </div>
                                     <div className="flex flex-col">
@@ -258,13 +261,20 @@ export const Admin: React.FC = () => {
                                     </div>
                                 </div>
                             </td>
-                            <td className="p-4 text-slate-400 text-sm">{client.cpf || '-'}</td>
+                            <td className="p-4">
+                                {client.role === UserRole.ADMIN ? (
+                                    <span className="text-xs font-bold text-violet-400 flex items-center"><Crown size={12} className="mr-1" /> Admin</span>
+                                ) : client.role === UserRole.SUPPORT ? (
+                                    <span className="text-xs font-bold text-amber-400 flex items-center"><ShieldCheck size={12} className="mr-1" /> Func.</span>
+                                ) : (
+                                    <span className="text-xs text-slate-400">Cliente</span>
+                                )}
+                            </td>
                             <td className="p-4 text-slate-400 text-sm">{client.plan}</td>
                             <td className="p-4">
                                 <StatusBadge status={client.status} />
                             </td>
                             <td className="p-4 text-slate-400 text-sm">{client.validUntil !== '2099-12-31' ? new Date(client.validUntil).toLocaleDateString() : 'Vitalício'}</td>
-                            <td className="p-4 text-slate-400 text-sm">{client.usage || 0}</td>
                             <td className="p-4 text-right">
                                 <div className="flex items-center justify-end gap-2">
                                     <button 
@@ -288,7 +298,7 @@ export const Admin: React.FC = () => {
                     {filteredUsers.length === 0 && (
                         <tr>
                             <td colSpan={7} className="p-8 text-center text-slate-500">
-                                Nenhum cliente encontrado.
+                                Nenhum usuário encontrado.
                             </td>
                         </tr>
                     )}
@@ -306,7 +316,7 @@ export const Admin: React.FC = () => {
                         <div className="bg-violet-600/20 p-2 rounded-lg">
                             {editingUser ? <Edit size={18} className="text-violet-400" /> : <Plus size={18} className="text-violet-400" />}
                         </div>
-                        <h2 className="text-xl font-bold text-white">{editingUser ? 'Editar Cliente' : 'Novo Cliente'}</h2>
+                        <h2 className="text-xl font-bold text-white">{editingUser ? 'Editar Usuário' : 'Novo Usuário'}</h2>
                     </div>
                     <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-white">
                         <X size={20} />
@@ -341,7 +351,7 @@ export const Admin: React.FC = () => {
                         <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg flex items-start gap-3">
                             <Key size={18} className="text-blue-400 mt-0.5" />
                             <p className="text-xs text-blue-300">
-                                A senha será <strong>gerada automaticamente</strong> e exibida na próxima tela para você enviar ao cliente.
+                                A senha será <strong>gerada automaticamente</strong> e exibida na próxima tela para você enviar ao usuário.
                             </p>
                         </div>
                     )}
@@ -358,6 +368,21 @@ export const Admin: React.FC = () => {
                             />
                         </div>
                         <div>
+                             <label className="block text-xs font-bold text-slate-300 mb-1.5">Tipo de Usuário</label>
+                             <select 
+                                className="w-full bg-[#1E293B] border border-slate-700 rounded-lg p-3 text-white focus:border-violet-500 outline-none"
+                                value={formData.role}
+                                onChange={e => setFormData({...formData, role: e.target.value as UserRole})}
+                            >
+                                <option value={UserRole.CUSTOMER}>Cliente</option>
+                                <option value={UserRole.SUPPORT}>Funcionário (Suporte)</option>
+                                <option value={UserRole.ADMIN}>Administrador</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {formData.role === UserRole.CUSTOMER && (
+                        <div>
                             <label className="block text-xs font-bold text-slate-300 mb-1.5">Plano</label>
                             <select 
                                 className="w-full bg-[#1E293B] border border-slate-700 rounded-lg p-3 text-white focus:border-violet-500 outline-none"
@@ -369,7 +394,7 @@ export const Admin: React.FC = () => {
                                 <option value="ENTERPRISE">Enterprise</option>
                             </select>
                         </div>
-                    </div>
+                    )}
 
                     {/* Área de Status e Validade */}
                     <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700 space-y-4">
@@ -388,7 +413,7 @@ export const Admin: React.FC = () => {
                             {formData.status === 'PENDING' && (
                                 <p className="text-[10px] text-orange-400 mt-1 flex items-center">
                                     <AlertTriangle size={10} className="mr-1" />
-                                    O cliente verá uma tela de bloqueio financeiro.
+                                    O usuário verá uma tela de bloqueio financeiro.
                                 </p>
                             )}
                         </div>
@@ -430,7 +455,7 @@ export const Admin: React.FC = () => {
                             disabled={loading}
                             className="bg-violet-600 hover:bg-violet-500 text-white border-none font-bold shadow-lg shadow-violet-500/20"
                         >
-                            {loading ? 'Salvando...' : (editingUser ? 'Salvar Alterações' : 'Criar Cliente')}
+                            {loading ? 'Salvando...' : (editingUser ? 'Salvar Alterações' : 'Criar Usuário')}
                         </Button>
                     </div>
                 </form>

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, PlusCircle, Printer, Users, LogOut, Package, Settings, Palette, Crown, ChevronRight, ChevronLeft, Sliders, Menu, X, Lock, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, Printer, Users, LogOut, Package, Settings, Palette, Crown, ChevronRight, ChevronLeft, Sliders, Menu, X, Lock, AlertTriangle, LifeBuoy } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { UserRole } from '../../types';
@@ -98,12 +98,19 @@ export const DashboardLayout: React.FC = () => {
           <NavItem to="/dashboard/products" icon={Package} label="Produtos" />
           <NavItem to="/dashboard/templates" icon={Palette} label="Templates" />
           <NavItem to="/dashboard/settings" icon={Settings} label="Configurações" />
+          <NavItem to="/dashboard/support" icon={LifeBuoy} label="Suporte Online" />
           
-          {user.role === UserRole.ADMIN && (
+          {/* Admin e Support acessam área de administração */}
+          {(user.role === UserRole.ADMIN || user.role === UserRole.SUPPORT) && (
             <>
               {!collapsed && <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-4 mt-8 mb-4">Administração</div>}
-              <NavItem to="/dashboard/admin" icon={Users} label="Usuários" />
-              <NavItem to="/dashboard/admin/settings" icon={Sliders} label="Config. Sistema" />
+              {/* Ambos veem Usuários */}
+              <NavItem to="/dashboard/admin" icon={Users} label="Gerenciar Usuários" />
+              
+              {/* Apenas Admin vê Configurações do Sistema */}
+              {user.role === UserRole.ADMIN && (
+                  <NavItem to="/dashboard/admin/settings" icon={Sliders} label="Config. Sistema" />
+              )}
             </>
           )}
       </div>
@@ -116,7 +123,9 @@ export const DashboardLayout: React.FC = () => {
                     <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center text-slate-300 font-bold text-lg group-hover:text-white transition-colors">{user.name.charAt(0).toUpperCase()}</div>
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-white truncate">{user.name}</p>
-                        <p className="text-xs text-slate-500 truncate capitalize">{user.plan.toLowerCase()}</p>
+                        <p className="text-xs text-slate-500 truncate capitalize">
+                            {user.role === UserRole.SUPPORT ? 'Funcionário' : user.plan.toLowerCase()}
+                        </p>
                     </div>
                     <button onClick={handleLogout} className="text-slate-500 hover:text-red-400 transition-colors"><LogOut size={16} /></button>
                 </div>
